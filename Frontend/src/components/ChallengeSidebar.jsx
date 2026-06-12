@@ -1,7 +1,32 @@
 import { useEffect, useState } from "react";
 import {
-  BookOpen, CheckSquare, Check, XCircle, HelpCircle
+  BookOpen, CheckSquare, Check, XCircle, HelpCircle, FlaskConical
 } from "lucide-react";
+import { compileWebSandbox } from "../utils/compiler";
+
+
+const formatTaskText = (text) => {
+  if (!text) return "";
+  const parts = text.split(/(`[^`]+`|"[^"]+")/g);
+  return parts.map((part, index) => {
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return (
+        <code key={index} className="bg-gray-100 text-gray-900 px-1.5 py-0.5 rounded font-mono text-[0.74rem] border border-gray-200">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    if (part.startsWith('"') && part.endsWith('"')) {
+      return (
+        <code key={index} className="bg-gray-100 text-gray-900 px-1.5 py-0.5 rounded font-mono text-[0.74rem] border border-gray-200">
+          {part}
+        </code>
+      );
+    }
+    return part;
+  });
+};
+
 
 const ChallengeSidebar = ({
   isDesktop,
@@ -131,43 +156,68 @@ const ChallengeSidebar = ({
 
             <div className="leading-relaxed text-gray-700">{activeQuestion.description}</div>
 
-            <div>
-              <h3 className="text-[0.82rem] font-bold text-gray-900 mb-1.5 uppercase tracking-wide">Input Format</h3>
-              <div className="text-gray-600 text-[0.8rem]">
-                {renderListOrText(activeQuestion.inputFormat, "Standard HTML input form elements and DOM event listeners.")}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-[0.82rem] font-bold text-gray-900 mb-1.5 uppercase tracking-wide">Output Format</h3>
-              <div className="text-gray-600 text-[0.8rem]">
-                {renderListOrText(activeQuestion.outputFormat, "Updates to the sandbox DOM hierarchy and corresponding console logs.")}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-[0.82rem] font-bold text-gray-900 mb-1.5 uppercase tracking-wide">Constraints</h3>
-              <ul className="pl-4 m-0 flex flex-col gap-1 text-gray-600 text-[0.8rem] leading-relaxed">
-                {renderListOrText(activeQuestion.constraints, ["Follow correct HTML semantic elements structure.", "Ensure all required tasks validate and check off successfully."])}
-              </ul>
-            </div>
-
-            {activeQuestion.examples?.length > 0 && (
+            {activeQuestion.changesToBeDone?.length > 0 && (
               <div>
-                <h3 className="text-[0.82rem] font-bold text-gray-900 mb-1.5 uppercase tracking-wide">Examples</h3>
+                <h3 className="text-[0.82rem] font-bold text-gray-900 mb-3 uppercase tracking-wide">Tests:</h3>
                 <div className="flex flex-col gap-2.5">
-                  {activeQuestion.examples.map((ex, i) => (
-                    <div key={i} className="bg-gray-50 border border-gray-200 rounded-md px-3.5 py-2.5 font-mono text-[0.76rem] text-gray-700">
-                      <div className="mb-1.5">
-                        <span className="font-bold text-gray-600">Input:</span>
-                        <pre className="mt-0.5 mb-0 whitespace-pre-wrap text-gray-800">{ex.input}</pre>
+                  {activeQuestion.changesToBeDone.map((change, idx) => {
+                    const stepResult = validationResult?.stepResults?.[idx];
+                    const hasRule = activeQuestion.rules?.some(
+                      (r, rIdx) => (r.stepIndex ?? Math.min(rIdx, totalSteps - 1)) === idx
+                    );
+                    const isPassed = hasRule ? stepResult?.success : validationResult?.success;
+                    const isFailed = hasRule && stepResult && !stepResult.success;
+
+                    let badgeBg = "bg-gray-100 border-gray-200 text-gray-500";
+                    let itemBg = "bg-gray-50/50 border-gray-100";
+                    let iconElement = <FlaskConical size={14} className="text-gray-500" />;
+
+                    if (isPassed) {
+                      badgeBg = "bg-emerald-50 border-emerald-200 text-emerald-600";
+                      itemBg = "bg-emerald-50/10 border-emerald-100/70";
+                      iconElement = <Check size={14} className="text-emerald-600" />;
+                    } else if (isFailed) {
+                      badgeBg = "bg-rose-50 border-rose-200 text-rose-600";
+                      itemBg = "bg-rose-50/10 border-rose-100/70";
+                      iconElement = <XCircle size={14} className="text-rose-600" />;
+                    }
+
+                    const cleanChange = change.replace(/^\d+\.\s*/, "");
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex gap-3.5 items-center px-4 py-3 rounded-xl border transition-all duration-150 ${itemBg}`}
+                      >
+                        <div className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 shadow-sm ${badgeBg}`}>
+                          {iconElement}
+                        </div>
+                        <div className="text-[0.78rem] text-gray-700 leading-relaxed font-semibold grow">
+                          <span className="text-gray-900 mr-1">{idx + 1}.</span>
+                          {formatTaskText(cleanChange)}
+                        </div>
                       </div>
-                      <div>
-                        <span className="font-bold text-gray-600">Output:</span>
-                        <pre className="mt-0.5 mb-0 whitespace-pre-wrap text-gray-800">{ex.output}</pre>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {activeQuestion.solutionHtml !== undefined && (
+              <div>
+                <h3 className="text-[0.82rem] font-bold text-gray-900 mb-3 uppercase tracking-wide">Expected Output</h3>
+                <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white h-[280px] relative">
+                  <iframe
+                    srcDoc={compileWebSandbox(
+                      activeQuestion.solutionHtml || "",
+                      activeQuestion.solutionCss || "",
+                      activeQuestion.solutionJs || "",
+                      "expected-sidebar"
+                    )}
+                    title="Expected Output Preview"
+                    className="w-full h-full border-none bg-white"
+                    sandbox="allow-scripts allow-same-origin"
+                  />
                 </div>
               </div>
             )}

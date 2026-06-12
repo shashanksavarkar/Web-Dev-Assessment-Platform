@@ -26,6 +26,8 @@ const CreatorWorkspace = ({ questions, setQuestions, showToast, tabSize, activeI
   const [bulkJsonText, setBulkJsonText] = useState("");
   const [creatorCodeTab, setCreatorCodeTab] = useState("html");
   const [creatorTab, setCreatorTab] = useState("form");
+  const [showLibrary, setShowLibrary] = useState(false);
+
 
   const updateForm = (fields) => setForm(prev => ({ ...prev, ...fields }));
 
@@ -276,91 +278,16 @@ const CreatorWorkspace = ({ questions, setQuestions, showToast, tabSize, activeI
   );
 
   return (
-    <div className="flex grow px-8 pb-6 gap-6 overflow-hidden text-text-primary min-h-0">
+    <div className="flex grow px-8 pb-6 gap-6 overflow-hidden text-text-primary min-h-0 justify-center">
       
-      {/* Left Sidebar: Persistent Question Library */}
-      <div className="w-[310px] shrink-0 flex flex-col h-full bg-white border border-border rounded-2xl p-5 shadow-sm min-w-0">
-        <div className="flex justify-between items-center mb-4.5 shrink-0">
-          <h2 className="text-[0.78rem] font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-            <span>Challenges</span>
-            <span className="bg-bg-tertiary text-text-secondary px-2 py-0.5 rounded-full text-[0.68rem] font-bold">
-              {filteredQuestions.length}
-            </span>
-          </h2>
-          <button 
-            onClick={() => handleLoadPreset("blank")}
-            className="btn-minimal creator-btn-gradient px-3 py-1.5 rounded-lg flex items-center gap-1 text-[0.72rem] font-extrabold"
-          >
-            + Add New
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="relative mb-4 shrink-0">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
-          <input 
-            type="text" 
-            placeholder="Search challenges..." 
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="creator-search-input pl-9.5 text-[0.8rem]"
-          />
-        </div>
-
-        {/* Scrollable List of Challenges */}
-        <div className="grow overflow-y-auto flex flex-col gap-2.5 pr-1.5 scrollbar">
-          {filteredQuestions.length === 0 ? (
-            <div className="text-center py-12 text-text-secondary text-[0.78rem] font-semibold">
-              No challenges found.
-            </div>
-          ) : (
-            filteredQuestions.map((q) => {
-              const originalIndex = questions.findIndex(x => x.id === q.id);
-              const difficultyLower = (q.difficulty || "easy").toLowerCase();
-              const isActive = form.id === q.id;
-              const stepCount = (q.changesToBeDone || []).length || (q.rules || []).length || (q.constraints || []).length || 0;
-              return (
-                <div 
-                  key={q.id} 
-                  onClick={() => handleEditChallenge(q)} 
-                  className={`creator-sidebar-card cursor-pointer ${isActive ? "active" : ""}`}
-                >
-                  <div className="flex justify-between items-start w-full gap-2">
-                    <span className="font-bold text-[0.78rem] line-clamp-2 grow text-text-primary leading-snug">
-                      {originalIndex + 1}. {q.title}
-                    </span>
-                    <button 
-                      onClick={(e) => handleDeleteChallenge(q.id, e)} 
-                      className="bg-transparent border-none text-neon-red cursor-pointer flex p-1 hover:bg-rose-50 rounded-md transition-all delete-btn"
-                      title="Delete Challenge"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className={`challenge-difficulty ${difficultyLower} text-[0.58rem]`}>
-                      {q.difficulty || "Easy"}
-                    </span>
-                    <span className="text-[0.62rem] text-text-secondary font-bold">
-                      {stepCount > 0 ? `${stepCount} checks` : "Template"}
-                    </span>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
       {/* Right Content Area */}
-      <div className="grow flex flex-col h-full min-w-0 overflow-hidden">
+      <div className="grow flex flex-col h-full min-w-0 overflow-hidden max-w-[1200px]">
         
         {/* Modern Pill Tab Switcher */}
         <div className="flex justify-between items-center mb-5 shrink-0">
           <div className="flex bg-bg-tertiary p-1 rounded-xl gap-1 border border-border shrink-0">
             {[
               { id: "form", label: "Wizard Form" },
-              { id: "text", label: "Markdown Outline Parser" },
               { id: "bulk", label: "Bulk Mode (JSON)" }
             ].map(t => (
               <button 
@@ -376,7 +303,16 @@ const CreatorWorkspace = ({ questions, setQuestions, showToast, tabSize, activeI
               </button>
             ))}
           </div>
+
+          <button 
+            onClick={() => setShowLibrary(true)} 
+            className="btn-minimal border-accent text-accent hover:bg-accent hover:text-white px-4 py-2 rounded-xl text-[0.8rem] font-bold flex items-center gap-1.5 transition-all duration-150 shadow-sm bg-white"
+          >
+            <BookOpen size={14} />
+            <span>Question Library</span>
+          </button>
         </div>
+
 
         {/* Tab Content Panels */}
         <div className="grow overflow-y-auto pr-1 min-h-0 scrollbar">
@@ -592,40 +528,7 @@ const CreatorWorkspace = ({ questions, setQuestions, showToast, tabSize, activeI
                 </div>
               )}
 
-              {creatorTab === "text" && (
-                <div className="creator-glass-card p-6 flex flex-col gap-4">
-                  <div className="flex items-center gap-2 border-b border-border pb-3">
-                    <FileText size={16} className="text-accent" />
-                    <span className="text-[0.85rem] font-bold text-text-primary">Markdown Outline Parser</span>
-                  </div>
-                  <span className="text-[0.75rem] text-text-secondary font-semibold leading-relaxed">
-                    Draft your challenge as a structured text outline. Our parser will instantly process the structure and populate the wizard form.
-                  </span>
-                  <textarea 
-                    value={importText} 
-                    onChange={e => setImportText(e.target.value)} 
-                    rows={12} 
-                    className="creator-input-text font-[family-name:var(--font-family-code)] text-[0.78rem] p-3.5 rounded-xl border border-border bg-bg-primary" 
-                    placeholder={`Title: Click Action\nDifficulty: Easy\nDescription: Make updates on counter click.\nTasks:\n- Create h1 with ID 'counter'\n- Create button with ID 'increment-btn'`} 
-                  />
-                  <button 
-                    onClick={() => {
-                      if (!importText.trim()) return showToast("Outline cannot be empty!", "error");
-                      const parsed = parseChallengeText(importText);
-                      setForm({
-                        id: "", title: parsed.title, difficulty: parsed.difficulty, type: "HTML/CSS/JS", duration: 15, topics: ["HTML", "CSS"], companies: ["Google"], description: parsed.description, steps: parsed.steps,
-                        html: parsed.initialHtml, css: parsed.initialCss, js: parsed.initialJs,
-                        solHtml: parsed.solutionHtml, solCss: parsed.solutionCss, solJs: parsed.solutionJs
-                      });
-                      setCreatorTab("form");
-                      showToast("Outline parsed successfully!", "success");
-                    }} 
-                    className="btn-minimal creator-btn-gradient w-full justify-center p-3.5 rounded-xl"
-                  >
-                    Parse &amp; Load into Wizard
-                  </button>
-                </div>
-              )}
+
 
               {creatorTab === "bulk" && (
                 <div className="creator-glass-card p-6 flex flex-col gap-4 animate-[slideIn_0.2s_ease]">
@@ -654,6 +557,104 @@ const CreatorWorkspace = ({ questions, setQuestions, showToast, tabSize, activeI
 
         </div>
       </div>
+
+      {/* Question Library Modal */}
+      {showLibrary && (
+        <div className="modal-backdrop" onClick={() => setShowLibrary(false)}>
+          <div 
+            className="modal-content w-[480px] max-h-[85vh] bg-white flex flex-col p-6 rounded-2xl" 
+            onClick={e => e.stopPropagation()}
+            style={{ minWidth: "380px" }}
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center mb-4 shrink-0">
+              <h2 className="text-[0.9rem] font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5">
+                <BookOpen size={16} className="text-accent" />
+                <span>Question Library</span>
+                <span className="bg-bg-tertiary text-text-secondary px-2.5 py-0.5 rounded-full text-[0.72rem] font-bold">
+                  {filteredQuestions.length}
+                </span>
+              </h2>
+              <button
+                onClick={() => setShowLibrary(false)}
+                className="bg-transparent border-none text-[1.1rem] text-text-secondary cursor-pointer hover:text-text-primary px-1 font-bold outline-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Actions & Search */}
+            <div className="flex gap-3 mb-4 shrink-0">
+              <div className="relative grow">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
+                <input 
+                  type="text" 
+                  placeholder="Search challenges..." 
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="creator-search-input pl-9.5 text-[0.8rem]"
+                />
+              </div>
+              <button 
+                onClick={() => {
+                  handleLoadPreset("blank");
+                  setShowLibrary(false);
+                }}
+                className="btn-minimal creator-btn-gradient px-4 py-2.5 rounded-xl flex items-center gap-1 text-[0.76rem] font-extrabold whitespace-nowrap"
+              >
+                + Add New
+              </button>
+            </div>
+
+            {/* Scrollable list of Challenges */}
+            <div className="grow overflow-y-auto flex flex-col gap-2.5 pr-1.5 scrollbar min-h-0">
+              {filteredQuestions.length === 0 ? (
+                <div className="text-center py-12 text-text-secondary text-[0.78rem] font-semibold">
+                  No challenges found.
+                </div>
+              ) : (
+                filteredQuestions.map((q) => {
+                  const originalIndex = questions.findIndex(x => x.id === q.id);
+                  const difficultyLower = (q.difficulty || "easy").toLowerCase();
+                  const isActive = form.id === q.id;
+                  const stepCount = (q.changesToBeDone || []).length || (q.rules || []).length || (q.constraints || []).length || 0;
+                  return (
+                    <div 
+                      key={q.id} 
+                      onClick={() => {
+                        handleEditChallenge(q);
+                        setShowLibrary(false);
+                      }} 
+                      className={`creator-sidebar-card cursor-pointer ${isActive ? "active" : ""}`}
+                    >
+                      <div className="flex justify-between items-start w-full gap-2">
+                        <span className="font-bold text-[0.78rem] line-clamp-2 grow text-text-primary leading-snug">
+                          {originalIndex + 1}. {q.title}
+                        </span>
+                        <button 
+                          onClick={(e) => handleDeleteChallenge(q.id, e)} 
+                          className="bg-transparent border-none text-neon-red cursor-pointer flex p-1 hover:bg-rose-50 rounded-md transition-all delete-btn"
+                          title="Delete Challenge"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className={`challenge-difficulty ${difficultyLower} text-[0.58rem]`}>
+                          {q.difficulty || "Easy"}
+                        </span>
+                        <span className="text-[0.62rem] text-text-secondary font-bold">
+                          {stepCount > 0 ? `${stepCount} checks` : "Template"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

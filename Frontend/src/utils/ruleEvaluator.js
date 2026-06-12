@@ -1,5 +1,84 @@
 import { RULE_TYPES } from "../constants/ruleTypes";
 
+const querySelectorWithFallback = (doc, selector) => {
+  if (!selector) return null;
+  
+  // 1. Try the exact selector first
+  let element = doc.querySelector(selector);
+  if (element) return element;
+
+  // 2. Fallback for IDs: if it's #id, try class, name, or data-test attributes
+  if (selector.startsWith('#')) {
+    const name = selector.substring(1);
+    element = doc.querySelector(`.${name}`) || 
+              doc.querySelector(`[name="${name}"]`) ||
+              doc.querySelector(`[data-test="${name}"]`) ||
+              doc.querySelector(`[data-testid="${name}"]`);
+    if (element) return element;
+  }
+
+  // 3. Fallback for tag+ID (e.g. 'button#increment-btn' or 'span#count-display')
+  const tagIdMatch = selector.match(/^([\w-]+)#([\w-]+)$/);
+  if (tagIdMatch) {
+    const [_, tag, id] = tagIdMatch;
+    element = doc.querySelector(`#${id}`) || 
+              doc.querySelector(`${tag}.${id}`) || 
+              doc.querySelector(`${tag}[name="${id}"]`);
+    if (element) return element;
+  }
+
+  // 4. Fallback for tag+class (e.g. 'button.btn')
+  const tagClassMatch = selector.match(/^([\w-]+)\.([\w-]+)$/);
+  if (tagClassMatch) {
+    const [_, tag, className] = tagClassMatch;
+    element = doc.querySelector(`.${className}`) || 
+              doc.querySelector(`${tag}[id="${className}"]`);
+    if (element) return element;
+  }
+
+  // 5. Fallback for buttons based on text/value content
+  if (selector.includes('btn') || selector.includes('button')) {
+    const buttons = Array.from(doc.querySelectorAll('button, input[type="button"], input[type="submit"]'));
+    if (selector.includes('increment') || selector.includes('plus') || selector.includes('add')) {
+      element = buttons.find(b => {
+        const txt = b.textContent.trim().toLowerCase() || b.value?.toLowerCase() || "";
+        return txt.includes('+') || txt.includes('inc') || txt.includes('add');
+      });
+      if (element) return element;
+    }
+    if (selector.includes('decrement') || selector.includes('minus') || selector.includes('sub')) {
+      element = buttons.find(b => {
+        const txt = b.textContent.trim().toLowerCase() || b.value?.toLowerCase() || "";
+        return txt.includes('-') || txt.includes('dec') || txt.includes('sub') || txt.includes('−');
+      });
+      if (element) return element;
+    }
+    if (selector.includes('reset') || selector.includes('clear')) {
+      element = buttons.find(b => {
+        const txt = b.textContent.trim().toLowerCase() || b.value?.toLowerCase() || "";
+        return txt.includes('reset') || txt.includes('clear');
+      });
+      if (element) return element;
+    }
+  }
+
+  return null;
+};
+
+const querySelectorAllWithFallback = (doc, selector) => {
+  if (!selector) return [];
+  const list = doc.querySelectorAll(selector);
+  if (list.length > 0) return Array.from(list);
+
+  if (selector.startsWith('.')) {
+    const className = selector.substring(1);
+    const fallbackList = doc.querySelectorAll(`[class*="${className}"]`);
+    if (fallbackList.length > 0) return Array.from(fallbackList);
+  }
+  return [];
+};
+
+
 /**
  * Evaluates candidate code submissions (HTML, CSS, JS) against verification rules.
  * 
@@ -32,15 +111,15 @@ export const evaluateRules = (html, css, js, logs, activeQuestion, iframeDoc) =>
     let rulePassed = true;
     let ruleMessage = "";
     
-    // Direct browser actions (clicks, key inputs) to the active sandbox, otherwise evaluate statically.
-    const doc = (type === RULE_TYPES.CLICK_AND_ASSERT || type === RULE_TYPES.INPUT_AND_ASSERT) ? liveDoc : staticDoc;
+    // Evaluate rules against the live document (resolves associated CSS styles and JS behaviors)
+    const doc = liveDoc;
 
     try {
       switch (type) {
         // Simulates input typing behavior and asserts target DOM side effects.
         case RULE_TYPES.INPUT_AND_ASSERT: {
-          const inputEl = doc.querySelector(selector);
-          const targetEl = doc.querySelector(targetSelector);
+          const inputEl = querySelectorWithFallback(doc, selector);
+          const targetEl = querySelectorWithFallback(doc, targetSelector);
           if (!inputEl) {
             rulePassed = false;
             ruleMessage = errorMessage || `Input element "${selector}" not found.`;
@@ -65,8 +144,8 @@ export const evaluateRules = (html, css, js, logs, activeQuestion, iframeDoc) =>
         
         // Simulates click action and asserts target DOM side effects.
         case RULE_TYPES.CLICK_AND_ASSERT: {
-          const clickEl = doc.querySelector(selector);
-          const targetEl = doc.querySelector(targetSelector);
+          const clickEl = querySelectorWithFallback(doc, selector);
+          const targetEl = querySelectorWithFallback(doc, targetSelector);
           if (!clickEl) {
             rulePassed = false;
             ruleMessage = errorMessage || `Click target element "${selector}" not found.`;
@@ -89,19 +168,19 @@ export const evaluateRules = (html, css, js, logs, activeQuestion, iframeDoc) =>
         
         // Verifies an element exists in the DOM.
         case RULE_TYPES.TAG_EXISTS:
-          rulePassed = !!doc.querySelector(selector);
+          rulePassed = !!querySelectorWithFallback(doc, selector);
           if (!rulePassed) ruleMessage = errorMessage || `Expected element "${selector}" to exist.`;
           break;
           
         // Verifies an element does not exist in the DOM.
         case RULE_TYPES.TAG_NOT_EXISTS:
-          rulePassed = !doc.querySelector(selector);
+          rulePassed = !querySelectorWithFallback(doc, selector);
           if (!rulePassed) ruleMessage = errorMessage || `Expected element "${selector}" NOT to exist.`;
           break;
           
         // Asserts exact quantity matching for a selector.
         case RULE_TYPES.TAG_COUNT: {
-          const len = doc.querySelectorAll(selector).length;
+          const len = querySelectorAllWithFallback(doc, selector).length;
           rulePassed = len === value;
           if (!rulePassed) ruleMessage = errorMessage || `Expected ${value} "${selector}" elements (got ${len}).`;
           break;
@@ -109,7 +188,7 @@ export const evaluateRules = (html, css, js, logs, activeQuestion, iframeDoc) =>
         
         // Asserts exact text content equivalence.
         case RULE_TYPES.TEXT_EQUALS: {
-          const el = doc.querySelector(selector);
+          const el = querySelectorWithFallback(doc, selector);
           rulePassed = !!el && el.textContent.trim() === value;
           if (!rulePassed) ruleMessage = errorMessage || (!el ? `Element "${selector}" not found.` : `Expected "${selector}" text to be exactly "${value}" (got "${el.textContent.trim()}").`);
           break;
@@ -117,7 +196,7 @@ export const evaluateRules = (html, css, js, logs, activeQuestion, iframeDoc) =>
         
         // Asserts text contains the specified substring.
         case RULE_TYPES.TEXT_CONTAINS: {
-          const el = doc.querySelector(selector);
+          const el = querySelectorWithFallback(doc, selector);
           rulePassed = !!el && el.textContent.includes(value);
           if (!rulePassed) ruleMessage = errorMessage || (!el ? `Element "${selector}" not found.` : `Expected "${selector}" text to contain "${value}".`);
           break;

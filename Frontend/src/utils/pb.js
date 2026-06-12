@@ -1,99 +1,40 @@
-import PocketBase from 'pocketbase';
 import DEFAULT_QUESTIONS from '../constants/challenges.json';
 
-// Initialize PocketBase client using environment variable or fallback to local port 8090
-export const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL || 'http://127.0.0.1:8090');
-
-// Intercept requests to bypass tunnel landing pages/browser warnings (Localtunnel & ngrok)
-pb.beforeSend = (url, options) => {
-  options.headers = Object.assign({}, options.headers, {
-    'bypass-tunnel-reminder': 'true',
-    'ngrok-skip-browser-warning': 'true'
-  });
-  return { url, options };
-};
+// Initialize API URL using environment variables or fallback to local port 5000
+export const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_POCKETBASE_URL || 'http://127.0.0.1:5000';
 
 // Local storage key for offline syncing
 const LOCAL_STORAGE_KEY = 'ppa_custom_challenges';
 
-// Helper to check if PocketBase is online and reachable
+// Helper to check if API is online and reachable
 export const isPocketBaseOnline = async () => {
   try {
-    await pb.send('/api/health', {});
-    return true;
-  } catch (error) {
+    const res = await fetch(`${API_URL}/api/health`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.status === 'OK';
+    }
+    return false;
+  } catch {
     return false;
   }
 };
 
-// Fetch all challenges from PocketBase (falling back to localStorage if offline)
+// Fetch all challenges from API (falling back to localStorage if offline)
 export const getChallenges = async () => {
   const isOnline = await isPocketBaseOnline();
   if (isOnline) {
     try {
-      let records = await pb.collection('challenges').getFullList({
-        sort: 'created',
-      });
+      const res = await fetch(`${API_URL}/api/challenges`);
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       
-      // Auto-seeding: If PocketBase is online but blank, seed it with default questions
-      if (records.length === 0) {
-        console.info("PocketBase 'challenges' collection is empty. Seeding defaults...");
-        for (const q of DEFAULT_QUESTIONS) {
-          const payload = {
-            title: q.title,
-            difficulty: q.difficulty,
-            type: q.type,
-            duration: q.duration,
-            topics: q.topics,
-            companies: q.companies,
-            description: q.description,
-            changesToBeDone: q.changesToBeDone,
-            hints: q.hints,
-            rules: q.rules,
-            initialHtml: q.initialHtml,
-            initialCss: q.initialCss,
-            initialJs: q.initialJs,
-            solutionHtml: q.solutionHtml,
-            solutionCss: q.solutionCss,
-            solutionJs: q.solutionJs,
-            env: q.env || 'web',
-          };
-          try {
-            await pb.collection('challenges').create(payload);
-          } catch (createErr) {
-            console.error("Failed to seed challenge:", q.title, createErr);
-          }
-        }
-        // Fetch the seeded records
-        records = await pb.collection('challenges').getFullList({
-          sort: 'created',
-        });
-      }
-
-      // Map pocketbase schema back to application state challenge properties
-      return records.map(r => ({
-        id: r.id,
-        dbId: r.id,
-        env: r.env || 'web',
-        title: r.title,
-        difficulty: r.difficulty,
-        type: r.type,
-        duration: r.duration,
-        topics: r.topics || [],
-        companies: r.companies || [],
-        description: r.description,
-        changesToBeDone: r.changesToBeDone || [],
-        hints: r.hints || [],
-        rules: r.rules || [],
-        initialHtml: r.initialHtml || '',
-        initialCss: r.initialCss || '',
-        initialJs: r.initialJs || '',
-        solutionHtml: r.solutionHtml || '',
-        solutionCss: r.solutionCss || '',
-        solutionJs: r.solutionJs || '',
-      }));
+      const records = await res.json();
+      
+      // Auto-seeding: If database is online but blank, the Express backend automatically seeds.
+      // We return the fetched list.
+      return records;
     } catch (e) {
-      console.warn("PocketBase fetch failed, falling back to local storage:", e);
+      console.warn("API fetch failed, falling back to local storage:", e);
     }
   }
 
@@ -106,7 +47,7 @@ export const getChallenges = async () => {
   }
 };
 
-// Save a challenge (updates/creates in PocketBase if online and always updates local storage)
+// Save a challenge (updates/creates in API if online and always updates local storage)
 export const saveChallenge = async (q) => {
   const isOnline = await isPocketBaseOnline();
   
@@ -134,16 +75,19 @@ export const saveChallenge = async (q) => {
 
   if (isOnline) {
     try {
-      // Detect if ID is a valid PocketBase ID format (15 characters alphanumeric)
-      const isPocketBaseId = q.id && q.id.length === 15 && /^[a-z0-9]+$/i.test(q.id);
-      
-      if (isPocketBaseId) {
-        savedRecord = await pb.collection('challenges').update(q.id, payload);
+      // Connects to the Express upsert endpoint
+      const res = await fetch(`${API_URL}/api/challenges`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, id: q.id })
+      });
+      if (res.ok) {
+        savedRecord = await res.json();
       } else {
-        savedRecord = await pb.collection('challenges').create(payload);
+        throw new Error(`Save failed with status ${res.status}`);
       }
     } catch (e) {
-      console.error("Failed to save to PocketBase database:", e);
+      console.error("Failed to save to database:", e);
     }
   }
 
@@ -174,13 +118,15 @@ export const saveChallenge = async (q) => {
 // Delete a challenge
 export const deleteChallenge = async (id) => {
   const isOnline = await isPocketBaseOnline();
-  const isPocketBaseId = id && id.length === 15 && /^[a-z0-9]+$/i.test(id);
 
-  if (isOnline && isPocketBaseId) {
+  if (isOnline && id) {
     try {
-      await pb.collection('challenges').delete(id);
+      const res = await fetch(`${API_URL}/api/challenges/${id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error(`Delete failed with status ${res.status}`);
     } catch (e) {
-      console.error("Failed to delete from PocketBase database:", e);
+      console.error("Failed to delete from database:", e);
     }
   }
 

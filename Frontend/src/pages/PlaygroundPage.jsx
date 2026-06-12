@@ -3,7 +3,6 @@ import DEFAULT_QUESTIONS from "../constants/challenges.json";
 import { compileWebSandbox } from "../utils/compiler";
 import { evaluateRules } from "../utils/ruleEvaluator";
 import { getLocal, setLocal, resolveVal } from "../utils/storage";
-import { runConfetti } from "../utils/confetti";
 import { getChallenges } from "../utils/pb";
 
 import SettingsDrawer from "../components/SettingsDrawer";
@@ -41,6 +40,8 @@ const PlaygroundPage = () => {
   const diffEditorRef    = useRef(null);
   const canvasRef        = useRef(null);
   const sandboxToken     = useId();
+  const justRanRef       = useRef(false);
+
 
   // Custom Hooks for Layout Resizing and Timer
   const {
@@ -208,13 +209,37 @@ const PlaygroundPage = () => {
     return () => clearTimeout(id);
   }, [htmlCode, cssCode, webJsCode, consoleLogs, activeQuestion, srcDoc]);
 
-  // Confetti
+  // Watch validation results to log failures/missing checks to console upon run/submit
   useEffect(() => {
-    if (!celebrated || !canvasRef.current) return;
-    return runConfetti(canvasRef.current, () => {
-      setUi(p => ({ ...p, celebrated: false }));
+    if (!validationResult || !justRanRef.current || !activeQuestion) return;
+    
+    justRanRef.current = false;
+    const testLogs = [];
+    const totalSteps = activeQuestion.changesToBeDone?.length || 0;
+
+    activeQuestion.changesToBeDone?.forEach((change, idx) => {
+      const stepResult = validationResult.stepResults?.[idx];
+      const hasRule = activeQuestion.rules?.some(
+        (r, rIdx) => (r.stepIndex ?? Math.min(rIdx, totalSteps - 1)) === idx
+      );
+      const isPassed = hasRule ? stepResult?.success : validationResult.success;
+      
+      if (!isPassed) {
+        const failMsg = stepResult?.messages?.[0] || "Verification rule failed or element is missing.";
+        testLogs.push({
+          type: "error",
+          message: `❌ Test Failed: ${change.replace(/^\d+\.\s*/, "")} (Reason: ${failMsg})`,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+        });
+      }
     });
-  }, [celebrated]);
+
+    if (testLogs.length > 0) {
+      setConsoleLogs(prev => [...prev, ...testLogs]);
+    }
+  }, [validationResult, activeQuestion]);
+
+
 
   useEffect(() => {
     if (validationResult?.success && activeQuestion && !completedIds.has(activeQuestion.id) && !celebrated) {
@@ -234,12 +259,14 @@ const PlaygroundPage = () => {
   const handleRunCode = useCallback(() => {
     setConsoleLogs([]);
     setUi(p => ({ ...p, compiling: true }));
+    justRanRef.current = true;
     setTimeout(() => { 
       setSrcDoc(compileWebSandbox(htmlCode, cssCode, webJsCode, sandboxToken)); 
       setUi(p => ({ ...p, compiling: false })); 
       showToast("Built successfully!", "success"); 
     }, 450);
   }, [htmlCode, cssCode, webJsCode, sandboxToken]);
+
 
   useEffect(() => { handleRunCodeRef.current = handleRunCode; }, [handleRunCode]);
 
@@ -325,6 +352,7 @@ const PlaygroundPage = () => {
   };
   const handleSubmitPractice = () => {
     setAttemptsCount(prev => prev + 1);
+    justRanRef.current = true;
     handleRunCode();
     setTimeout(() => {
       const iframeDoc = document.querySelector(".preview-iframe")?.contentDocument;
@@ -464,8 +492,7 @@ const PlaygroundPage = () => {
         {toasts.map(t => <div key={t.id} className={`toast-item toast-${t.type || "info"}`}><span>{t.message}</span></div>)}
       </div>
 
-      {/* Confetti canvas */}
-      {celebrated && <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-[999999]" />}
+
 
       {showShortcutsModal && <ShortcutsModal showShortcutsModal={showShortcutsModal} setShowShortcutsModal={s => setUi(p => ({ ...p, shortcuts: s }))} />}
     </div>
