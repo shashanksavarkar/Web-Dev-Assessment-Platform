@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Search, Trash2, BookOpen, AlertCircle } from "lucide-react";
+import { FileText, Search, Trash2, BookOpen, AlertCircle, ArrowLeft } from "lucide-react";
 import DEFAULT_QUESTIONS from "../constants/challenges.json";
 import { challengeToSteps, stepsToRulesAndTasks, generateStarterCode } from "../utils/challengeHelpers";
 import CustomDropdown from "./creator/CustomDropdown";
@@ -24,7 +24,6 @@ const CreatorWorkspace = ({ questions, setQuestions, showToast, tabSize }) => {
   const [advancedSteps, setAdvancedSteps] = useState({});
   const [importText, setImportText] = useState("");
   const [bulkJsonText, setBulkJsonText] = useState("");
-  const [creatorCodeTab, setCreatorCodeTab] = useState("html");
   const [creatorTab, setCreatorTab] = useState("form");
   const [showLibrary, setShowLibrary] = useState(false);
 
@@ -277,7 +276,7 @@ const CreatorWorkspace = ({ questions, setQuestions, showToast, tabSize }) => {
     <div className="flex grow px-8 pb-6 gap-6 overflow-hidden text-text-primary min-h-0 justify-center">
       
       {/* Right Content Area */}
-      <div className="grow flex flex-col h-full min-w-0 overflow-hidden max-w-[1200px]">
+      <div className="grow flex flex-col h-full min-w-0 overflow-hidden max-w-[1440px]">
         
         {/* Modern Pill Tab Switcher */}
         <div className="flex justify-between items-center mb-5 shrink-0">
@@ -300,13 +299,28 @@ const CreatorWorkspace = ({ questions, setQuestions, showToast, tabSize }) => {
             ))}
           </div>
 
-          <button 
-            onClick={() => setShowLibrary(true)} 
-            className="btn-minimal border-accent text-accent hover:bg-accent hover:text-white px-4 py-2 rounded-xl text-[0.8rem] font-bold flex items-center gap-1.5 transition-all duration-150 shadow-sm bg-white"
-          >
-            <BookOpen size={14} />
-            <span>Question Library</span>
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setShowLibrary(true)} 
+              className="btn-minimal border-accent text-accent hover:bg-accent hover:text-white px-4 py-2 rounded-xl text-[0.8rem] font-bold flex items-center gap-1.5 transition-all duration-150 shadow-sm bg-white"
+            >
+              <BookOpen size={14} />
+              <span>Question Library</span>
+            </button>
+
+            <button
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete("mode");
+                window.location.href = url.pathname + url.search;
+              }}
+              className="btn-minimal border-rose-500 text-rose-500 hover:bg-rose-500 hover:text-white px-4 py-2 rounded-xl text-[0.8rem] font-bold flex items-center gap-1.5 transition-all duration-150 shadow-sm bg-white"
+              title="Return to Playground"
+            >
+              <ArrowLeft size={14} />
+              <span>Exit</span>
+            </button>
+          </div>
         </div>
 
 
@@ -488,8 +502,6 @@ const CreatorWorkspace = ({ questions, setQuestions, showToast, tabSize }) => {
 
                   {/* Code Templates Workspace Component */}
                   <CodeTemplatesWorkspace 
-                    creatorCodeTab={creatorCodeTab}
-                    setCreatorCodeTab={setCreatorCodeTab}
                     form={form}
                     updateForm={updateForm}
                     tabSize={tabSize}
