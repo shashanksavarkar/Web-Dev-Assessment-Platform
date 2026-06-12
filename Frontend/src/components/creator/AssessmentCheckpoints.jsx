@@ -46,20 +46,18 @@ const AssessmentCheckpoints = ({
       <div className="timeline-container">
         <div className="flex flex-col gap-0 max-h-[380px] overflow-y-auto pl-1 pr-2 scrollbar">
           {steps.map((step, idx) => (
-            <div key={idx} className="flex gap-4.5 items-stretch relative min-h-0">
+            <div key={idx} className="flex gap-4.5 items-start relative">
+              {/* Connecting vertical segment line */}
+              {idx < steps.length - 1 && (
+                <div className="absolute left-[15px] top-6 bottom-0 w-[2px] bg-gradient-to-b from-accent to-slate-200/20" />
+              )}
               
-              {/* Left Column: Timeline badge and track segment */}
+              {/* Left Column: Timeline badge */}
               <div className="flex flex-col items-center shrink-0 w-8">
                 {/* Timeline badge */}
                 <div className="timeline-step-badge">
                   {idx + 1}
                 </div>
-                {/* Connecting vertical segment line */}
-                {idx < steps.length - 1 ? (
-                  <div className="timeline-track-segment"></div>
-                ) : (
-                  <div className="h-4"></div>
-                )}
               </div>
 
               {/* Right Column: Step details card */}
