@@ -3,7 +3,7 @@ import { getSession, setSession } from "../utils/storage";
 
 export const useTimer = () => {
   const [timeSpent, setTimeSpent] = useState(() => getSession("ppa_practice_time_spent", 0));
-  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerRunning, setTimerRunning] = useState(true);
 
   useEffect(() => {
     if (!timerRunning) return;
@@ -17,15 +17,9 @@ export const useTimer = () => {
     return () => clearInterval(id);
   }, [timerRunning]);
 
-  const resetTimer = () => {
-    setTimeSpent(0);
-    setSession("ppa_practice_time_spent", 0);
-  };
-
   return {
     timeSpent,
     timerRunning,
-    setTimerRunning,
-    resetTimer
+    setTimerRunning
   };
 };

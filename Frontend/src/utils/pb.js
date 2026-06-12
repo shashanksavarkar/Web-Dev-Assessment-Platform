@@ -143,3 +143,24 @@ export const deleteChallenge = async (id) => {
     return { success: false, error: e.message };
   }
 };
+
+// Save student code submission to database
+export const saveSubmission = async (submission) => {
+  const isOnline = await isPocketBaseOnline();
+  if (isOnline) {
+    try {
+      const res = await fetch(`${API_URL}/api/submissions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submission)
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      throw new Error(`HTTP error ${res.status}`);
+    } catch (e) {
+      console.error("Failed to save submission:", e);
+    }
+  }
+  return null;
+};

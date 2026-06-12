@@ -15,7 +15,8 @@ const ShortcutsModal = ({ showShortcutsModal, setShowShortcutsModal }) => {
 
         <div className="flex flex-col gap-3 text-xs">
           {[
-            { keys: ["Ctrl", "S"], desc: "Compile sandbox / run tests" },
+            { keys: ["Ctrl", "S"], desc: "Save code to browser storage" },
+            { keys: ["Ctrl", "Enter"], desc: "Compile sandbox / run tests" },
             { keys: ["Alt", "Z"], desc: "Toggle editor word-wrap" },
             { keys: ["Ctrl", "Alt", "D"], desc: "Toggle side-by-side diff view" },
             { keys: ["Ctrl", "Alt", "K"], desc: "Toggle shortcuts guide" },

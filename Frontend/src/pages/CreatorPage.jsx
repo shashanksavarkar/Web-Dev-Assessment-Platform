@@ -82,8 +82,6 @@ const CreatorPage = () => {
           setQuestions={setQuestions}
           showToast={showToast}
           tabSize={tabSize}
-          activeIndex={null}
-          loadQuestion={null}
         />
       </main>
 

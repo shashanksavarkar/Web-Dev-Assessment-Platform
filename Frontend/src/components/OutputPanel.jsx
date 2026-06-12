@@ -11,23 +11,22 @@ const OutputPanel = ({
   col3Height = 55, onDragStart
 }) => {
   const [logFilter, setLogFilter] = useState("all");
-  const [searchTerm, setSearchTerm] = useState("");
   const [consoleCollapsed, setConsoleCollapsed] = useState(false);
 
   const filteredLogs = consoleLogs.filter(log => {
     if (logFilter === "log" && log.type !== "log" && log.type !== "info") return false;
     if (logFilter !== "all" && logFilter !== "log" && log.type !== logFilter) return false;
-    return !searchTerm || log.message.toLowerCase().includes(searchTerm.toLowerCase());
+    return true;
   });
 
   const consoleHeight = 100 - col3Height;
   const iframeSandbox = "allow-scripts allow-same-origin";
 
   return (
-    <div className="h-full flex flex-col overflow-hidden gap-0.5">
+    <div className="h-full flex flex-col overflow-hidden gap-0">
 
       {/* Browser Panel (Top) */}
-      <div className="grow min-h-[15%] flex flex-col border border-border rounded-lg overflow-hidden bg-bg-secondary">
+      <div className="grow min-h-[15%] flex flex-col border-l border-border bg-bg-secondary">
         {/* Browser Header */}
         <div className="h-9 flex items-center justify-between border-b border-border bg-bg-primary px-3 shrink-0 select-none">
           <div className="flex items-center gap-1.5 text-text-primary text-xs font-bold">
@@ -97,7 +96,7 @@ const OutputPanel = ({
 
       {/* Console Panel (Bottom) */}
       <div
-        className="flex flex-col border border-border rounded-lg overflow-hidden bg-bg-secondary transition-[height] duration-200"
+        className="flex flex-col dev-console border-l border-t border-border !rounded-none overflow-hidden transition-[height] duration-200"
         style={{
           height: consoleCollapsed ? "36px" : `${consoleHeight}%`,
           minHeight: consoleCollapsed ? "36px" : "15%",
@@ -107,51 +106,43 @@ const OutputPanel = ({
         {/* Console Header */}
         <div
           onClick={() => setConsoleCollapsed(c => !c)}
-          className="h-9 flex items-center justify-between bg-bg-primary px-3 shrink-0 select-none cursor-pointer"
-          style={{ borderBottom: consoleCollapsed ? "none" : "1px solid var(--color-border)" }}
+          className="h-9 flex items-center justify-between dev-console-header px-3 shrink-0 select-none cursor-pointer"
         >
-          <div className="flex items-center gap-1.5 text-text-primary text-xs font-bold">
-            {consoleCollapsed ? <ChevronRight size={13} className="text-text-secondary" /> : <ChevronDown size={13} className="text-text-secondary" />}
-            <Terminal size={13} className="text-text-secondary" />
+          <div className="flex items-center gap-2 text-slate-800 text-xs font-bold">
+            {consoleCollapsed ? <ChevronRight size={13} className="text-slate-400" /> : <ChevronDown size={13} className="text-slate-400" />}
+            <Terminal size={13} className="text-accent animate-pulse" />
             <span>Console</span>
             {consoleLogs.length > 0 && (
-              <span className="text-[0.65rem] bg-bg-quaternary border border-border rounded-xl px-[5px] text-text-secondary">{consoleLogs.length}</span>
+              <span className="text-[0.65rem] bg-accent/10 border border-accent/20 rounded-xl px-1.5 py-0.5 text-accent font-sans font-bold">{consoleLogs.length}</span>
             )}
           </div>
 
           {!consoleCollapsed && (
-            <div onClick={e => e.stopPropagation()} className="flex items-center gap-2">
+            <div onClick={e => e.stopPropagation()} className="flex items-center gap-3">
               {/* Filter Pills */}
-              <div className="flex gap-1">
+              <div className="flex gap-1.5 bg-slate-105 p-0.5 rounded-lg border border-slate-200">
                 {[
-                  { id: "all", label: "All", count: consoleLogs.length },
-                  { id: "log", label: "Logs", count: consoleLogs.filter(l => l.type === "log" || l.type === "info").length },
-                  { id: "error", label: "Errors", count: consoleLogs.filter(l => l.type === "error").length }
+                  { id: "all", label: "All", count: consoleLogs.length, activeClass: "active-all" },
+                  { id: "log", label: "Logs", count: consoleLogs.filter(l => l.type === "log" || l.type === "info").length, activeClass: "active-log" },
+                  { id: "error", label: "Errors", count: consoleLogs.filter(l => l.type === "error").length, activeClass: "active-error" }
                 ].map(f => (
                   <button
                     key={f.id}
                     onClick={() => setLogFilter(f.id)}
-                    className={`px-1.5 py-0.5 text-[0.65rem] border border-border rounded cursor-pointer text-text-secondary ${
-                      logFilter === f.id ? "bg-bg-quaternary font-bold" : "bg-transparent font-medium"
+                    className={`px-2.5 py-1 text-[0.65rem] rounded-md cursor-pointer font-semibold dev-console-pill ${
+                      logFilter === f.id ? f.activeClass : "text-slate-500 bg-transparent border-transparent"
                     }`}
                   >
-                    {f.label} ({f.count})
+                    {f.label} <span className="opacity-60 text-[0.6rem] ml-0.5">({f.count})</span>
                   </button>
                 ))}
               </div>
-              <input
-                type="text"
-                placeholder="Filter logs..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="text-[0.65rem] bg-bg-primary border border-border rounded px-1.5 py-0.5 w-[100px] outline-none text-text-primary"
-              />
               <button
                 onClick={() => setConsoleLogs([])}
-                className="px-1.5 py-0.5 text-[0.65rem] inline-flex items-center gap-1 bg-transparent border border-border rounded text-text-secondary cursor-pointer"
+                className="p-1 text-[0.68rem] inline-flex items-center justify-center bg-transparent border border-slate-200 hover:border-slate-350 hover:bg-slate-100 rounded-md text-slate-400 hover:text-rose-600 cursor-pointer transition-all duration-150"
                 title="Clear Logs"
               >
-                <Trash2 size={11} />
+                <Trash2 size={13} />
               </button>
             </div>
           )}
@@ -159,36 +150,38 @@ const OutputPanel = ({
 
         {/* Console Logs Container */}
         {!consoleCollapsed && (
-          <div className="grow overflow-y-auto px-3.5 py-2.5 font-[family-name:var(--font-family-code)] text-xs bg-bg-secondary">
+          <div className="grow overflow-y-auto px-4 py-3 dev-console-body">
             {filteredLogs.length === 0 ? (
-              <div className="text-text-secondary text-[0.7rem] italic text-center mt-2.5">
-                {searchTerm ? "No logs matching filter" : "Console empty"}
+              <div className="text-slate-400 text-[0.7rem] italic text-center mt-4 flex flex-col items-center gap-1">
+                <Terminal size={16} className="text-slate-300" />
+                <span>Console empty</span>
               </div>
             ) : (
               filteredLogs.map((log, index) => {
-                const colors = { warn: "#b45309", error: "var(--color-neon-red)", success: "var(--color-neon-green)" };
+                const colors = { warn: "#b45309", error: "#dc2626", success: "#059669", log: "#0284c7" };
                 const icons = {
-                  warn: <AlertCircle size={10} style={{ color: "#b45309" }} />,
-                  error: <XCircle size={10} className="text-neon-red" />,
-                  success: <CheckCircle2 size={10} className="text-neon-green" />
+                  warn: <AlertCircle size={11} className="text-amber-600" />,
+                  error: <XCircle size={11} className="text-rose-600" />,
+                  success: <CheckCircle2 size={11} className="text-emerald-600" />
                 };
-                const color = colors[log.type] || "var(--color-text-primary)";
-                const icon = icons[log.type] || <Info size={10} className="text-accent" />;
+                const color = colors[log.type] || "#0f172a";
+                const icon = icons[log.type] || <Info size={11} className="text-sky-600" />;
+                const typeClass = log.type === "warn" ? "log-warn" : log.type === "error" ? "log-error" : log.type === "success" ? "log-success" : "log-info";
 
-                let renderContent = <span className="whitespace-pre-wrap break-all">{log.message}</span>;
+                let renderContent = <span className="whitespace-pre-wrap break-all select-text font-mono leading-relaxed text-[0.74rem] text-slate-800">{log.message}</span>;
                 const trimmed = log.message.trim();
                 if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
                   try {
                     renderContent = <JsonInspector data={JSON.parse(trimmed)} />;
                   } catch {
-                    renderContent = <span className="whitespace-pre-wrap break-all">{log.message}</span>;
+                    renderContent = <span className="whitespace-pre-wrap break-all select-text font-mono leading-relaxed text-[0.74rem] text-slate-800">{log.message}</span>;
                   }
                 }
 
                 return (
-                  <div key={index} className="flex gap-2 items-start mb-1 border-b border-border pb-1" style={{ color }}>
+                  <div key={index} className={`dev-console-log-item ${typeClass} flex gap-2.5 items-start mb-1.5 pb-1 border-b border-slate-100`} style={{ color }}>
                     <span className="mt-0.5 shrink-0">{icon}</span>
-                    {renderContent}
+                    <div className="grow">{renderContent}</div>
                   </div>
                 );
               })

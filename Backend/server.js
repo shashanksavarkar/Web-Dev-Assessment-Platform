@@ -239,6 +239,74 @@ app.delete('/api/challenges/:id', async (req, res) => {
   }
 });
 
+// Submit student solution
+app.post('/api/submissions', async (req, res) => {
+  try {
+    const { studentId, challengeId, htmlCode, cssCode, jsCode, success, attempts, timeSpent } = req.body;
+    
+    if (!challengeId) {
+      return res.status(400).json({ error: 'challengeId is required' });
+    }
+    
+    const query = `
+      INSERT INTO submissions (
+        student_id, challenge_id, html_code, css_code, js_code, success, attempts, time_spent
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `;
+    
+    const { rows } = await pool.query(query, [
+      studentId || 'default_student',
+      challengeId,
+      htmlCode || '',
+      cssCode || '',
+      jsCode || '',
+      !!success,
+      attempts || 0,
+      timeSpent || 0
+    ]);
+    
+    const saved = rows[0];
+    res.status(201).json({
+      id: saved.id,
+      studentId: saved.student_id,
+      challengeId: saved.challenge_id,
+      htmlCode: saved.html_code,
+      cssCode: saved.css_code,
+      jsCode: saved.js_code,
+      success: saved.success,
+      attempts: saved.attempts,
+      timeSpent: saved.time_spent,
+      submittedAt: saved.submitted_at
+    });
+  } catch (error) {
+    console.error('Error saving submission:', error.message);
+    res.status(500).json({ error: 'Failed to save submission' });
+  }
+});
+
+// Fetch all submissions
+app.get('/api/submissions', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM submissions ORDER BY submitted_at DESC');
+    res.json(rows.map(s => ({
+      id: s.id,
+      studentId: s.student_id,
+      challengeId: s.challenge_id,
+      htmlCode: s.html_code,
+      cssCode: s.css_code,
+      jsCode: s.js_code,
+      success: s.success,
+      attempts: s.attempts,
+      timeSpent: s.time_spent,
+      submittedAt: s.submitted_at
+    })));
+  } catch (error) {
+    console.error('Error fetching submissions:', error.message);
+    res.status(500).json({ error: 'Failed to fetch submissions' });
+  }
+});
+
 // Start Server
 app.listen(PORT, () => {
   console.log(`Express API Server running on port ${PORT}`);

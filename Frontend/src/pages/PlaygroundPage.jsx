@@ -3,7 +3,8 @@ import DEFAULT_QUESTIONS from "../constants/challenges.json";
 import { compileWebSandbox } from "../utils/compiler";
 import { evaluateRules } from "../utils/ruleEvaluator";
 import { getLocal, setLocal, resolveVal } from "../utils/storage";
-import { getChallenges } from "../utils/pb";
+import { getChallenges, saveSubmission } from "../utils/pb";
+import { initEmmet, setupAutoCloseTags } from "../utils/editorHelpers";
 
 import SettingsDrawer from "../components/SettingsDrawer";
 import OutputPanel from "../components/OutputPanel";
@@ -38,7 +39,6 @@ const PlaygroundPage = () => {
   const handleRunCodeRef = useRef(null);
   const editorRef        = useRef(null);
   const diffEditorRef    = useRef(null);
-  const canvasRef        = useRef(null);
   const sandboxToken     = useId();
   const justRanRef       = useRef(false);
 
@@ -77,8 +77,8 @@ const PlaygroundPage = () => {
   const { uiFontSize, autoCompile, tabSize, wordWrap, fontSize, minimap } = prefs;
 
   // UI toggles
-  const [ui, setUi] = useState({ settings: false, shortcuts: false, compiling: false, diff: false, celebrated: false, copied: false });
-  const { settings: showSettings, shortcuts: showShortcutsModal, compiling: isCompiling, diff: diffView, celebrated, copied } = ui;
+  const [ui, setUi] = useState({ settings: false, shortcuts: false, compiling: false, diff: false, celebrated: false });
+  const { settings: showSettings, shortcuts: showShortcutsModal, compiling: isCompiling, diff: diffView, celebrated } = ui;
 
   // Challenge state
   const [challenge, setChallenge] = useState({
@@ -182,10 +182,24 @@ const PlaygroundPage = () => {
     return () => window.removeEventListener("message", onMsg);
   }, [sandboxToken]);
 
+  const handleSaveCode = useCallback(() => {
+    showToast("Saved! Your code was saved to your browser's local storage.", "success");
+  }, []);
+
+  const handleSaveCodeRef = useRef(null);
+  useEffect(() => { handleSaveCodeRef.current = handleSaveCode; }, [handleSaveCode]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); handleRunCodeRef.current?.(); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        handleSaveCodeRef.current?.();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        handleRunCodeRef.current?.();
+      }
       if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "d")    { e.preventDefault(); setUi(p => ({ ...p, diff: !p.diff })); }
       if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "k")    { e.preventDefault(); setUi(p => ({ ...p, shortcuts: !p.shortcuts })); }
     };
@@ -318,9 +332,14 @@ const PlaygroundPage = () => {
     }
   };
 
+
+
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => handleRunCodeRef.current?.());
+    setupAutoCloseTags(editor, monaco);
+    initEmmet(monaco);
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => handleSaveCodeRef.current?.());
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => handleRunCodeRef.current?.());
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyD, () => setUi(p => ({ ...p, diff: !p.diff })));
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyK, () => setUi(p => ({ ...p, shortcuts: true })));
   };
@@ -328,8 +347,11 @@ const PlaygroundPage = () => {
   const handleDiffMount = (editor, monaco) => {
     diffEditorRef.current = editor;
     const mod = editor.getModifiedEditor();
+    setupAutoCloseTags(mod, monaco);
+    initEmmet(monaco);
     mod.onDidChangeModelContent(() => handleEditorChange(mod.getValue()));
-    mod.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => handleRunCodeRef.current?.());
+    mod.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => handleSaveCodeRef.current?.());
+    mod.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => handleRunCodeRef.current?.());
     mod.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyD, () => setUi(p => ({ ...p, diff: !p.diff })));
   };
 
@@ -343,22 +365,31 @@ const PlaygroundPage = () => {
     persistCurrentCode("js", j);
     showToast("Code reset", "info");
   };
-  const handleCopyCode = () => {
-    const code = webSubTab === "html" ? htmlCode : webSubTab === "css" ? cssCode : webJsCode;
-    navigator.clipboard.writeText(code);
-    setUi(p => ({ ...p, copied: true }));
-    setTimeout(() => setUi(p => ({ ...p, copied: false })), 2000);
-    showToast("Copied!", "success");
-  };
+
   const handleSubmitPractice = () => {
-    setAttemptsCount(prev => prev + 1);
+    const nextAttempts = attemptsCount + 1;
+    setAttemptsCount(nextAttempts);
     justRanRef.current = true;
     handleRunCode();
-    setTimeout(() => {
+    setTimeout(async () => {
       const iframeDoc = document.querySelector(".preview-iframe")?.contentDocument;
       const res = evaluateRules(htmlCode, cssCode, webJsCode, consoleLogs, activeQuestion, iframeDoc);
       showToast(res?.success ? "🎉 Challenge complete!" : "❌ Some tasks still failing. Keep going!", res?.success ? "success" : "error");
       if (res?.success && activeQuestion && !completedIds.has(activeQuestion.id)) setUi(p => ({ ...p, celebrated: true }));
+
+      // Save student code submission to database
+      if (activeQuestion) {
+        await saveSubmission({
+          studentId: 'default_student',
+          challengeId: activeQuestion.id,
+          htmlCode,
+          cssCode,
+          jsCode: webJsCode,
+          success: !!res?.success,
+          attempts: nextAttempts,
+          timeSpent
+        });
+      }
     }, 550);
   };
 
@@ -379,7 +410,7 @@ const PlaygroundPage = () => {
         />
       )}
 
-      <main ref={containerRef} className="playground-layout" style={{ height: "calc(100vh - 50px)", padding: 0 }}>
+      <main ref={containerRef} className="playground-layout" style={{ height: "100vh", padding: 0 }}>
 
         {/* Column 1: Challenge Sidebar */}
         {!sidebarCollapsed && !isEditorFullscreen && (
@@ -434,10 +465,8 @@ const PlaygroundPage = () => {
         <div style={{ width: isDesktop ? (isEditorFullscreen ? "100%" : `${displayCol2Width}%`) : "100%", height: "100%", display: "flex", flexDirection: "column", flexShrink: 0 }}>
           <WorkspaceEditor
             webSubTab={webSubTab}         setWebSubTab={setWebSubTab}
-            diffView={diffView}           setDiffView={d => updateUi("diff", d)}
-            setShowShortcutsModal={s => updateUi("shortcuts", s)}
+            diffView={diffView}
             handleFormatCode={handleFormatCode}
-            handleCopyCode={handleCopyCode}  copied={copied}
             handleResetCode={handleResetCode}
             getMonacoLanguage={() => webSubTab === "js" ? "javascript" : webSubTab}
             getOriginalCode={() => webSubTab === "html" ? (activeQuestion?.initialHtml || DEFAULT_HTML) : webSubTab === "css" ? (activeQuestion?.initialCss || DEFAULT_CSS) : (activeQuestion?.initialJs || DEFAULT_JS)}
@@ -459,37 +488,42 @@ const PlaygroundPage = () => {
         {/* Column 3: Output */}
         {!isEditorFullscreen && (
           <div ref={rightColumnRef} className="flex flex-col grow h-full min-w-0 overflow-hidden">
-            <OutputPanel
-              srcDoc={srcDoc}
-              consoleLogs={consoleLogs}     setConsoleLogs={setConsoleLogs}
-              onRefresh={handleRunCode}
-              isCompiling={isCompiling}
-              expectedSrcDoc={expectedSrcDoc}
-              showExpectedPreview={showExpectedPreview}
-              setShowExpectedPreview={s => updateChallenge("showExpected", s)}
-              hasActiveChallenge={!!activeQuestion}
-              hideExpectedOption={!isAuthorMode}
-              col3Height={col3Height}
-              onDragStart={e => { e.preventDefault(); startDragging("col3"); }}
+            <div className="grow min-h-0 flex flex-col">
+              <OutputPanel
+                srcDoc={srcDoc}
+                consoleLogs={consoleLogs}     setConsoleLogs={setConsoleLogs}
+                onRefresh={handleRunCode}
+                isCompiling={isCompiling}
+                expectedSrcDoc={expectedSrcDoc}
+                showExpectedPreview={showExpectedPreview}
+                setShowExpectedPreview={s => updateChallenge("showExpected", s)}
+                hasActiveChallenge={!!activeQuestion}
+                hideExpectedOption={!isAuthorMode}
+                col3Height={col3Height}
+                onDragStart={e => { e.preventDefault(); startDragging("col3"); }}
+              />
+            </div>
+            <PlaygroundFooter 
+              onRunCode={handleRunCode}
+              onSubmitPractice={handleSubmitPractice}
             />
           </div>
         )}
       </main>
 
-      {/* Footer Component */}
-      <PlaygroundFooter 
-        timerRunning={timerRunning}
-        setTimerRunning={setTimerRunning}
-        timeSpent={timeSpent}
-        attemptsCount={attemptsCount}
-        onResetCode={handleResetCode}
-        onRunCode={handleRunCode}
-        onSubmitPractice={handleSubmitPractice}
-      />
-
       {/* Toasts */}
       <div className="toast-container">
-        {toasts.map(t => <div key={t.id} className={`toast-item toast-${t.type || "info"}`}><span>{t.message}</span></div>)}
+        {toasts.map(t => (
+          <div key={t.id} className={`toast-item toast-${t.type || "info"} flex justify-between items-center gap-4`}>
+            <span>{t.message}</span>
+            <button
+              onClick={() => setToasts(p => p.filter(toast => toast.id !== t.id))}
+              className="bg-transparent border-none text-current opacity-70 hover:opacity-100 cursor-pointer font-bold text-sm select-none ml-2 leading-none outline-none"
+            >
+              ×
+            </button>
+          </div>
+        ))}
       </div>
 
 

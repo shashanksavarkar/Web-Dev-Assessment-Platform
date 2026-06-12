@@ -24,9 +24,4 @@ export const setSession = (key, val) => {
   return true;
 };
 
-export const formatTime = (s) => {
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
-};
-
 export const resolveVal = (valOrFn, currentVal) => typeof valOrFn === "function" ? valOrFn(currentVal) : valOrFn;

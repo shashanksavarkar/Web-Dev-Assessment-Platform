@@ -4,9 +4,9 @@ export const CHALLENGE_PRESETS = {
     difficulty: "Easy",
     description: "Create a page with a counter initialized to '0' and a button showing '+'. Clicking updates counter to '1'.",
     steps: [
-      { task: "Create h1 with ID 'counter' initialized to '0'.", type: "TEXT_EQUALS", elType: "heading", elId: "counter", elClass: "", targetId: "", value: "0", errorMessage: "" },
-      { task: "Create button with ID 'increment-btn' and text '+'.", type: "TAG_EXISTS", elType: "button", elId: "increment-btn", elClass: "", targetId: "", value: "", errorMessage: "" },
-      { task: "Ensure clicking updates counter to '1'.", type: "CLICK_AND_ASSERT", elType: "button", elId: "increment-btn", elClass: "", targetId: "counter", value: "1", errorMessage: "" }
+      { task: "Create h1 with ID 'counter' initialized to '0'.", type: "TEXT_EQUALS", selector: "#counter", targetId: "", value: "0", errorMessage: "" },
+      { task: "Create button with ID 'increment-btn' and text '+'.", type: "TAG_EXISTS", selector: "#increment-btn", targetId: "", value: "", errorMessage: "" },
+      { task: "Ensure clicking updates counter to '1'.", type: "CLICK_AND_ASSERT", selector: "#increment-btn", targetId: "#counter", value: "1", errorMessage: "" }
     ],
     html: "<!DOCTYPE html>\n<html>\n<body>\n</body>\n</html>",
     css: "body { font-family: sans-serif; text-align: center; }",
@@ -20,9 +20,9 @@ export const CHALLENGE_PRESETS = {
     difficulty: "Easy",
     description: "Create an input with class 'text-input' mirrored inside an h2 with class 'mirror-text'.",
     steps: [
-      { task: "Create input with class 'text-input'.", type: "TAG_EXISTS", elType: "input", elId: "", elClass: "text-input", targetId: "", value: "", errorMessage: "" },
-      { task: "Create h2 with class 'mirror-text'.", type: "TAG_EXISTS", elType: "heading", elId: "", elClass: "mirror-text", targetId: "", value: "", errorMessage: "" },
-      { task: "Mirror input value into mirror-text.", type: "INPUT_AND_ASSERT", elType: "input", elId: "", elClass: "text-input", targetId: "mirror-text", value: "Hello", errorMessage: "" }
+      { task: "Create input with class 'text-input'.", type: "TAG_EXISTS", selector: ".text-input", targetId: "", value: "", errorMessage: "" },
+      { task: "Create h2 with class 'mirror-text'.", type: "TAG_EXISTS", selector: ".mirror-text", targetId: "", value: "", errorMessage: "" },
+      { task: "Mirror input value into mirror-text.", type: "INPUT_AND_ASSERT", selector: ".text-input", targetId: ".mirror-text", value: "Hello", errorMessage: "" }
     ],
     html: "<!DOCTYPE html>\n<html>\n<body>\n</body>\n</html>",
     css: "body { font-family: sans-serif; }",

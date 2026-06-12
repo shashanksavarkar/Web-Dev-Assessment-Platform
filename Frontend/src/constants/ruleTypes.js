@@ -11,5 +11,3 @@ export const RULE_TYPES = Object.freeze({
   CONSOLE_LOG_CONTAINS: "CONSOLE_LOG_CONTAINS",
   CONSOLE_NO_ERRORS: "CONSOLE_NO_ERRORS"
 });
-
-export const RULE_TYPE_OPTIONS = Object.freeze(Object.values(RULE_TYPES));

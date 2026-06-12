@@ -24,3 +24,21 @@ CREATE TABLE IF NOT EXISTS challenges (
 
 -- Index for searching and sorting by creation time
 CREATE INDEX IF NOT EXISTS idx_challenges_created_at ON challenges(created_at);
+
+-- Table for storing student submissions
+CREATE TABLE IF NOT EXISTS submissions (
+    id SERIAL PRIMARY KEY,
+    student_id VARCHAR(255) DEFAULT 'default_student',
+    challenge_id VARCHAR(255) NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
+    html_code TEXT,
+    css_code TEXT,
+    js_code TEXT,
+    success BOOLEAN DEFAULT FALSE,
+    attempts INTEGER DEFAULT 0,
+    time_spent INTEGER DEFAULT 0,
+    submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for submissions lookup optimization
+CREATE INDEX IF NOT EXISTS idx_submissions_challenge_id ON submissions(challenge_id);
+CREATE INDEX IF NOT EXISTS idx_submissions_student_id ON submissions(student_id);

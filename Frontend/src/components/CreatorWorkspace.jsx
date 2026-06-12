@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FileText, Search, Trash2, BookOpen, AlertCircle } from "lucide-react";
 import DEFAULT_QUESTIONS from "../constants/challenges.json";
-import { challengeToSteps, stepsToRulesAndTasks, parseChallengeText, generateStarterCode } from "../utils/challengeHelpers";
+import { challengeToSteps, stepsToRulesAndTasks, generateStarterCode } from "../utils/challengeHelpers";
 import CustomDropdown from "./creator/CustomDropdown";
 import AssessmentCheckpoints from "./creator/AssessmentCheckpoints";
 import CodeTemplatesWorkspace from "./creator/CodeTemplatesWorkspace";
@@ -9,7 +9,7 @@ import { CHALLENGE_PRESETS } from "../constants/challengePresets";
 import { saveChallenge, deleteChallenge, isPocketBaseOnline, getChallenges } from "../utils/pb";
 
 
-const CreatorWorkspace = ({ questions, setQuestions, showToast, tabSize, activeIndex, loadQuestion }) => {
+const CreatorWorkspace = ({ questions, setQuestions, showToast, tabSize }) => {
   const [form, setForm] = useState({
     id: "", title: "", difficulty: "", type: "", duration: 0, topics: [], companies: [], description: "",
     steps: [{ task: "", type: "TAG_EXISTS", selector: "", targetId: "", value: "", errorMessage: "" }],
@@ -106,9 +106,7 @@ const CreatorWorkspace = ({ questions, setQuestions, showToast, tabSize, activeI
       
       handleEditChallenge(savedQ);
       
-      if (loadQuestion) {
-        loadQuestion(form.id ? activeIndex : updated.length - 1);
-      }
+
     } else {
       showToast("Failed to save challenge: " + result.error, "error");
     }
@@ -127,9 +125,7 @@ const CreatorWorkspace = ({ questions, setQuestions, showToast, tabSize, activeI
           handleLoadPreset("blank");
         }
 
-        if (loadQuestion && activeIndex !== null) {
-          loadQuestion(activeIndex >= updated.length ? (updated.length > 0 ? updated.length - 1 : null) : activeIndex);
-        }
+
       } else {
         showToast("Failed to delete challenge", "error");
       }
