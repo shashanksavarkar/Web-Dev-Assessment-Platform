@@ -19,8 +19,10 @@ app.use(express.json());
 
 // Initialize PostgreSQL Pool
 const { Pool } = pg;
+const isLocal = !process.env.DATABASE_URL || process.env.DATABASE_URL.includes('localhost') || process.env.DATABASE_URL.includes('127.0.0.1');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: isLocal ? false : { rejectUnauthorized: false }
 });
 
 // Check database connection and run schema.sql if table doesn't exist
