@@ -2,6 +2,12 @@
  * Build sandboxed web frame source code doc.
  */
 export const compileWebSandbox = (htmlCode, cssCode, webJsCode, messageToken = "") => {
+  // Strip redundant local stylesheets and scripts that we are already injecting inline
+  // to avoid 404 console errors in the sandboxed iframe.
+  const cleanHtml = (htmlCode || "")
+    .replace(/<link\s+[^>]*href=["']\s*\.?\/?style\.css\s*["'][^>]*>/gi, '<!-- inline style.css link removed -->')
+    .replace(/<script\s+[^>]*src=["']\s*\.?\/?index\.js\s*["'][^>]*>\s*<\/script>/gi, '<!-- inline index.js script removed -->');
+
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -55,7 +61,7 @@ export const compileWebSandbox = (htmlCode, cssCode, webJsCode, messageToken = "
         </script>
       </head>
       <body>
-        ${htmlCode}
+        ${cleanHtml}
         <script>
           try {
             ${webJsCode}
